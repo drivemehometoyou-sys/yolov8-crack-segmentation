@@ -27,6 +27,8 @@ __all__ = (
     "SPP",
     "SPPELAN",
     "SPPF",
+    "LSKA",
+    "SPPF_MSA",
     "AConv",
     "ADown",
     "Attention",
@@ -238,6 +240,116 @@ class SPPF(nn.Module):
         y.extend(self.m(y[-1]) for _ in range(getattr(self, "n", 3)))
         y = self.cv2(torch.cat(y, 1))
         return y + x if getattr(self, "add", False) else y
+
+
+class LSKA(nn.Module):
+    """
+    Large Separable Kernel Attention.
+
+    使用水平/垂直 depthwise convolution
+    以及 dilated depthwise convolution
+    扩大感受野，同时控制计算量。
+    """
+
+    def __init__(self, dim):
+        super().__init__()
+
+        # Local spatial modeling
+        self.conv0h = nn.Conv2d(
+            dim, dim,
+            kernel_size=(1, 3),
+            padding=(0, 1),
+            groups=dim
+        )
+
+        self.conv0v = nn.Conv2d(
+            dim, dim,
+            kernel_size=(3, 1),
+            padding=(1, 0),
+            groups=dim
+        )
+
+        # Larger receptive field using dilation
+        self.conv_spatial_h = nn.Conv2d(
+            dim, dim,
+            kernel_size=(1, 3),
+            padding=(0, 2),
+            dilation=2,
+            groups=dim
+        )
+
+        self.conv_spatial_v = nn.Conv2d(
+            dim, dim,
+            kernel_size=(3, 1),
+            padding=(2, 0),
+            dilation=2,
+            groups=dim
+        )
+
+        # Channel mixing
+        self.conv1 = nn.Conv2d(
+            dim, dim,
+            kernel_size=1
+        )
+
+    def forward(self, x):
+        u = x
+
+        attn = self.conv0h(x)
+        attn = self.conv0v(attn)
+
+        attn = self.conv_spatial_h(attn)
+        attn = self.conv_spatial_v(attn)
+
+        attn = self.conv1(attn)
+
+        return u * attn
+
+
+class SPPF_MSA(nn.Module):
+    """
+    SPPF + Large Separable Kernel Attention.
+
+    尽量保持原始 SPPF 的内部命名，
+    方便加载 YOLOv8 预训练权重。
+    """
+
+    def __init__(self, c1, c2, k=5):
+        super().__init__()
+
+        c_ = c1 // 2
+
+        self.cv1 = Conv(c1, c_, 1, 1)
+
+        self.cv2 = Conv(
+            c_ * 4,
+            c2,
+            1,
+            1
+        )
+
+        self.m = nn.MaxPool2d(
+            kernel_size=k,
+            stride=1,
+            padding=k // 2
+        )
+
+        # 在 SPPF 多尺度融合后加入 LSKA
+        self.attn = LSKA(c2)
+
+    def forward(self, x):
+        y = [self.cv1(x)]
+
+        y.extend(
+            self.m(y[-1])
+            for _ in range(3)
+        )
+
+        x = self.cv2(torch.cat(y, 1))
+
+        x = self.attn(x)
+
+        return x
 
 
 class C1(nn.Module):
