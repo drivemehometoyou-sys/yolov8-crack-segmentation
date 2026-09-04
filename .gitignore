@@ -1,0 +1,73 @@
+# Archives and downloaded source packages
+*.zip
+*.7z
+*.rar
+
+# Model weights and exported models
+*.pt
+*.pth
+*.weights
+*.onnx
+*.engine
+*.torchscript
+*.tflite
+*.pb
+*.h5
+*.mlmodel
+*.mlpackage
+*.mnn
+*.rknn
+*_openvino_model/
+*_saved_model/
+*_web_model/
+*_paddle_model/
+*_ncnn_model/
+*_imx_model/
+
+# Training and experiment outputs
+runs/
+wandb/
+mlruns/
+ray_results/
+*.log
+
+# Local datasets (keep dataset YAML configuration files tracked)
+/datasets/
+/data/
+
+# Python caches and environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Build and package artifacts
+build/
+dist/
+*.egg-info/
+
+# Local settings and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
